@@ -1,0 +1,43 @@
+name: ✈️ Tokyo-HK Flight Monitor
+
+on:
+  schedule:
+    # 東京時間 7:00 / 11:00 / 15:00 / 19:00 / 23:00（UTC 22/2/6/10/14時）
+    - cron: "0 22,2,6,10,14 * * *"
+
+  # 手動実行（テスト用）
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install fast-flights playwright requests
+          playwright install chromium
+
+      - name: ✈️ Run monitor
+        env:
+          BARK_KEY: ${{ secrets.BARK_KEY }}
+          BARK_URL: ${{ secrets.BARK_URL }}
+        run: python monitor.py
+
+      - name: 💾 Save price history
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "Flight Monitor Bot"
+          git add price_history.json
+          git diff --staged --quiet || git commit -m "📊 price update [$(date +'%Y-%m-%d %H:%M' -u)] [skip ci]"
+          git push
